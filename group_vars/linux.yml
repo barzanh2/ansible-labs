@@ -1,0 +1,7 @@
+timezone: Australia/Sydney
+disk_warn_pct: 80
+base_packages:
+  - curl
+  - git
+  - tree
+  - chrony

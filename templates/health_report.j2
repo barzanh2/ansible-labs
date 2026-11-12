@@ -1,0 +1,13 @@
+Health report: {{ inventory_hostname }}
+OS: {{ ansible_distribution }} {{ ansible_distribution_version }} (kernel {{ ansible_kernel }})
+Checked: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+Uptime: {{ (ansible_uptime_seconds / 3600) | round(1) }} hours
+Memory: {{ ansible_memfree_mb }} MB free of {{ ansible_memtotal_mb }} MB
+
+Disk usage
+{% for m in ansible_mounts | selectattr('fstype', 'in', ['ext4', 'xfs']) %}
+{% set pct = ((1 - m.size_available / m.size_total) * 100) | round(1) %}
+- {{ m.mount }}: {{ pct }}%{{ '  <-- over ' ~ disk_warn_pct ~ '%' if pct >= disk_warn_pct | int else '' }}
+{% endfor %}
+
+Critical services down: {{ services_down | join(', ') if services_down else 'none' }}

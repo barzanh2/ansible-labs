@@ -1,0 +1,6 @@
+Account audit: {{ inventory_hostname }}
+Checked: {{ ansible_date_time.date }}
+
+Human accounts (UID 1000+): {{ human_users | join(', ') }}
+Members of {{ admin_group }}: {{ admins | join(', ') if admins else 'none' }}
+Sudo rules in /etc/sudoers.d: {{ sudoers_files.files | map(attribute='path') | join(', ') if sudoers_files.files else 'none' }}

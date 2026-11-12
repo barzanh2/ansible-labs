@@ -1,0 +1,8 @@
+---
+- name: Apply the standard build to all Linux servers
+  hosts: linux
+  become: true
+  vars_files:
+    - vault.yml
+  roles:
+    - baseline

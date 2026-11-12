@@ -1,0 +1,10 @@
+os_packages:
+  - vim-enhanced
+  - yum-utils
+ssh_service: sshd
+time_service: chronyd
+admin_group: wheel
+auth_log: /var/log/secure
+critical_services:
+  - crond.service
+  - chronyd.service

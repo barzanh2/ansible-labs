@@ -1,0 +1,61 @@
+---
+- name: Patch Linux servers one at a time
+  hosts: linux
+  become: true
+  serial: 1
+
+  tasks:
+    - name: Record the kernel before patching
+      ansible.builtin.command: uname -r
+      register: kernel_before
+      changed_when: false
+
+    - name: Patch Ubuntu
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+      when: ansible_os_family == "Debian"
+
+    - name: Patch Rocky
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+      when: ansible_os_family == "RedHat"
+
+    - name: Check if Ubuntu needs a reboot
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_file
+      when: ansible_os_family == "Debian"
+
+    - name: Check if Rocky needs a reboot
+      ansible.builtin.command: needs-restarting -r
+      register: needs_restart
+      changed_when: false
+      failed_when: needs_restart.rc not in [0, 1]
+      when: ansible_os_family == "RedHat"
+
+    - name: Reboot if the patches need it
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+      when: >
+        (reboot_file.stat is defined and reboot_file.stat.exists) or
+        (needs_restart.rc is defined and needs_restart.rc == 1)
+
+    - name: Check services after patching
+      ansible.builtin.service_facts:
+
+    - name: Make sure critical services came back
+      ansible.builtin.assert:
+        that: "ansible_facts.services[item].state == 'running'"
+        fail_msg: "{{ item }} is not running after patching"
+      loop: "{{ critical_services }}"
+
+    - name: Record the kernel after patching
+      ansible.builtin.command: uname -r
+      register: kernel_after
+      changed_when: false
+
+    - name: Show the patch result
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: kernel {{ kernel_before.stdout }} -> {{ kernel_after.stdout }}"

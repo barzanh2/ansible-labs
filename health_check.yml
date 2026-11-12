@@ -1,0 +1,37 @@
+---
+- name: Server health check
+  hosts: linux
+  become: true
+
+  tasks:
+    - name: Collect the state of every service
+      ansible.builtin.service_facts:
+
+    - name: List running services
+      ansible.builtin.set_fact:
+        running_services: "{{ ansible_facts.services | dict2items | selectattr('value.state', 'equalto', 'running') | map(attribute='key') | list }}"
+
+    - name: Work out which critical services are down
+      ansible.builtin.set_fact:
+        services_down: "{{ critical_services | reject('in', running_services) | list }}"
+
+    - name: Warn about disks over the threshold
+      ansible.builtin.debug:
+        msg: "WARNING {{ item.mount }} is {{ ((1 - item.size_available / item.size_total) * 100) | round(1) }}% full"
+      loop: "{{ ansible_mounts | selectattr('fstype', 'in', ['ext4', 'xfs']) | list }}"
+      loop_control:
+        label: "{{ item.mount }}"
+      when: ((1 - item.size_available / item.size_total) * 100) >= disk_warn_pct | int
+
+    - name: Warn about critical services that are down
+      ansible.builtin.debug:
+        msg: "WARNING services down: {{ services_down | join(', ') }}"
+      when: services_down | length > 0
+
+    - name: Write the report on the control node
+      ansible.builtin.template:
+        src: templates/health_report.j2
+        dest: "{{ playbook_dir }}/reports/health-{{ inventory_hostname }}.txt"
+        mode: "0644"
+      delegate_to: localhost
+      become: false

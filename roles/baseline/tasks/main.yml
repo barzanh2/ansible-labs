@@ -1,0 +1,40 @@
+---
+- name: Install baseline packages
+  ansible.builtin.package:
+    name: "{{ base_packages + os_packages }}"
+    state: present
+
+- name: Make sure time sync is running and starts on boot
+  ansible.builtin.service:
+    name: "{{ time_service }}"
+    state: started
+    enabled: true
+
+- name: Set the timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Create the ops admin account
+  ansible.builtin.user:
+    name: opsadmin
+    groups: "{{ admin_group }}"
+    append: true
+    shell: /bin/bash
+    password: "{{ opsadmin_password_hash }}"
+
+
+- name: Apply SSH hardening
+  ansible.builtin.template:
+    src: 00-baseline.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-baseline.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Restart SSH
+
+- name: Set the login banner
+  ansible.builtin.template:
+    src: motd.j2
+    dest: /etc/motd
+    mode: "0644"

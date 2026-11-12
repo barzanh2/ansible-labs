@@ -1,0 +1,26 @@
+---
+- name: Collect error and auth logs from every server
+  hosts: linux
+  become: true
+
+  tasks:
+    - name: Export the last 24 hours of errors from the journal
+      ansible.builtin.shell: journalctl -p err --since "24 hours ago" --no-pager > /tmp/errors.log
+      changed_when: false
+
+    - name: Pull the error log back to the control node
+      ansible.builtin.fetch:
+        src: /tmp/errors.log
+        dest: "{{ playbook_dir }}/collected_logs/{{ inventory_hostname }}-errors.log"
+        flat: true
+
+    - name: Pull the auth log back to the control node
+      ansible.builtin.fetch:
+        src: "{{ auth_log }}"
+        dest: "{{ playbook_dir }}/collected_logs/{{ inventory_hostname }}-auth.log"
+        flat: true
+
+    - name: Clean up the temp file
+      ansible.builtin.file:
+        path: /tmp/errors.log
+        state: absent

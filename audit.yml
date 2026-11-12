@@ -1,0 +1,32 @@
+---
+- name: Audit local accounts and admin access
+  hosts: linux
+  become: true
+
+  tasks:
+    - name: Read the local user database
+      ansible.builtin.getent:
+        database: passwd
+
+    - name: Read the admin group
+      ansible.builtin.getent:
+        database: group
+        key: "{{ admin_group }}"
+
+    - name: Find extra sudo rules
+      ansible.builtin.find:
+        paths: /etc/sudoers.d
+      register: sudoers_files
+
+    - name: Work out human accounts and admins
+      ansible.builtin.set_fact:
+        human_users: "{{ ansible_facts.getent_passwd | dict2items | selectattr('value.1', 'regex', '^[0-9]{4}$') | map(attribute='key') | list }}"
+        admins: "{{ ansible_facts.getent_group[admin_group][2].split(',') | reject('equalto', '') | list }}"
+
+    - name: Write the audit report on the control node
+      ansible.builtin.template:
+        src: templates/audit_report.j2
+        dest: "{{ playbook_dir }}/reports/audit-{{ inventory_hostname }}.txt"
+        mode: "0644"
+      delegate_to: localhost
+      become: false

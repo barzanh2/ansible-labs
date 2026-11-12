@@ -1,0 +1,9 @@
+os_packages:
+  - vim
+ssh_service: ssh
+time_service: chrony
+admin_group: sudo
+auth_log: /var/log/auth.log
+critical_services:
+  - cron.service
+  - chrony.service
